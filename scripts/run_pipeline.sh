@@ -39,6 +39,12 @@ docker compose exec -T postgres psql -U crm_user -d smart_crm < database/routing
 echo "11. Refreshing follow-up reporting views..."
 docker compose exec -T postgres psql -U crm_user -d smart_crm < database/follow_up_views.sql
 
+echo "12. Sending CRM operations summary to live n8n webhook..."
+python3 scripts/python/send_n8n_summary.py
+
+echo "13. Sending high-priority lead alert to live n8n webhook..."
+python3 scripts/python/send_high_priority_alert.py
+
 echo "Pipeline completed successfully."
 
 echo "Summary:"
