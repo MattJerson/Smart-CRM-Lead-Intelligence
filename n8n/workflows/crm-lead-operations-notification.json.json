@@ -1,0 +1,219 @@
+{
+  "name": "CRM Lead Operations Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "REDACTED_WEBHOOK_PATH",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "id": "REDACTED_NODE_ID_WEBHOOK",
+      "name": "Webhook",
+      "webhookId": "REDACTED_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "crm_lead_operations_summary",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "REDACTED_CONDITION_ID_1"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "REDACTED_CONDITION_ID_2",
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "high_priority_lead_alert",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [208, 0],
+      "id": "REDACTED_NODE_ID_SWITCH",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "REDACTED_ASSIGNMENT_ID_1",
+              "name": "message",
+              "value": "={{ `CRM Lead Operations Summary\n\nTotal Leads: ${$json.body.lead_summary.total_leads}\nHot Leads: ${$json.body.lead_summary.hot_leads}\nWarm Leads: ${$json.body.lead_summary.warm_leads}\nCold Leads: ${$json.body.lead_summary.cold_leads}\nAverage Lead Score: ${$json.body.lead_summary.average_lead_score}\n\nPending Follow-Ups: ${$json.body.follow_up_summary.pending_tasks}\nOverdue Follow-Ups: ${$json.body.follow_up_summary.overdue_tasks}\nDue Today: ${$json.body.follow_up_summary.due_today_tasks}\n\nGenerated At: ${$json.body.generated_at}` }}",
+              "type": "string"
+            },
+            {
+              "id": "REDACTED_ASSIGNMENT_ID_2",
+              "name": "subject",
+              "value": "CRM Lead Operations Summary",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [416, -96],
+      "id": "REDACTED_NODE_ID_FORMAT_OPERATIONS",
+      "name": "Format Operations Summary"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "REDACTED_ASSIGNMENT_ID_3",
+              "name": "message",
+              "value": "={{ `High-Priority Lead Alert\n\nTotal Immediate Leads: ${$json.body.total_high_priority_leads}\n\nMessage: ${$json.body.message}\n\nGenerated At: ${$json.body.generated_at}` }}",
+              "type": "string"
+            },
+            {
+              "id": "REDACTED_ASSIGNMENT_ID_4",
+              "name": "subject",
+              "value": "High-Priority Lead Alert",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [416, 112],
+      "id": "REDACTED_NODE_ID_FORMAT_ALERT",
+      "name": "Format High Priority Alert"
+    },
+    {
+      "parameters": {
+        "sendTo": "recipient@example.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [688, 32],
+      "id": "REDACTED_NODE_ID_SEND_EMAIL",
+      "name": "Send a message",
+      "webhookId": "REDACTED_NODE_WEBHOOK_ID",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REDACTED_CREDENTIAL_ID",
+          "name": "REDACTED_EMAIL_CREDENTIAL"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Format Operations Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format High Priority Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Operations Summary": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format High Priority Alert": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "REDACTED_VERSION_ID",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "REDACTED_INSTANCE_ID"
+  },
+  "nodeGroups": [],
+  "id": "REDACTED_WORKFLOW_ID",
+  "tags": []
+}
