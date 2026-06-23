@@ -1,8 +1,8 @@
 # Smart CRM Lead Intelligence & Revenue Automation Platform
 
-A CRM-driven revenue operations platform that simulates lead intake, lead scoring, routing recommendations, follow-up task generation, business intelligence reporting, and workflow automation.
+A CRM-driven revenue operations platform that simulates lead intake, lead scoring, routing recommendations, follow-up task generation, business intelligence reporting, Salesforce CRM synchronization, and workflow automation.
 
-This project uses PostgreSQL, SQL, Java, Python, Docker, Metabase, and a live self-hosted n8n instance to demonstrate how CRM data can be scored, routed, monitored, and automated in a realistic revenue operations workflow.
+This project uses PostgreSQL, SQL, Java, Python, Docker, Metabase, Salesforce, and a live self-hosted n8n instance to demonstrate how CRM data can be scored, routed, monitored, synced to Salesforce, and automated in a realistic revenue operations workflow.
 
 ---
 
@@ -10,7 +10,7 @@ This project uses PostgreSQL, SQL, Java, Python, Docker, Metabase, and a live se
 
 This project simulates a real-world CRM and revenue operations system used by sales, marketing, and operations teams.
 
-The system generates sample CRM lead data, stores it in PostgreSQL, scores each lead using Java business logic, creates routing recommendations, generates follow-up tasks, prepares reporting views with SQL, visualizes insights in Metabase, and sends automated notifications through n8n.
+The system generates sample CRM lead data, stores it in PostgreSQL, scores each lead using Java business logic, creates routing recommendations, generates follow-up tasks, prepares reporting views with SQL, visualizes insights in Metabase, syncs selected high-priority leads into Salesforce, creates Salesforce follow-up Tasks, and sends automated notifications through n8n.
 
 The project is designed to demonstrate practical skills in:
 
@@ -18,13 +18,13 @@ The project is designed to demonstrate practical skills in:
 - Lead scoring
 - Lead routing
 - Follow-up task automation
+- Salesforce Lead and Task synchronization
 - SQL analytics
 - PostgreSQL database design
 - Java backend business rules
-- Python data generation and loading
+- Python data generation, loading, and integration scripting
 - Metabase dashboarding
 - n8n workflow automation
-- Salesforce CRM mapping
 - Docker-based local development
 
 ---
@@ -53,8 +53,22 @@ Follow-Up Tasks Table
 SQL Reporting Views
         ↓
 Metabase Dashboards
+
+High-Priority Leads
         ↓
-Python Webhook Sender
+Python Salesforce Sync Script
+        ↓
+Live n8n Automation Workflow
+        ↓
+Salesforce Lead Upsert
+        ↓
+Salesforce Follow-Up Task
+        ↓
+PostgreSQL Salesforce Sync Log
+
+CRM Summary + Alerts
+        ↓
+Python Webhook Senders
         ↓
 Live n8n Automation Workflow
         ↓
@@ -63,18 +77,44 @@ Email Notifications
 
 ---
 
+## Current Architecture
+
+This project uses a hybrid local and cloud automation setup.
+
+```txt
+Local Docker Services
+├── PostgreSQL
+└── Metabase
+
+Local Runtime
+├── Python data generation/loading scripts
+├── Java lead scoring engine
+├── Java lead routing engine
+├── Java follow-up task generator
+├── Salesforce sync script
+└── Pipeline validation script
+
+Live Automation
+└── n8n webhook workflow hosted externally
+
+External CRM
+└── Salesforce Lead and Task records
+```
+
+---
+
 ## Tech Stack
 
-| Layer            | Technology | Purpose                                                                        |
-| ---------------- | ---------- | ------------------------------------------------------------------------------ |
-| CRM Mapping      | Salesforce | Documents the CRM object model and field mappings                              |
-| Database         | PostgreSQL | Stores leads, campaigns, sales reps, scores, routing logs, and follow-up tasks |
-| Querying         | SQL        | Creates analytics queries and reusable reporting views                         |
-| Business Logic   | Java       | Scores leads, creates routing recommendations, and generates follow-up tasks   |
-| Data Scripting   | Python     | Generates sample data, loads PostgreSQL, and sends webhook payloads            |
-| Dashboarding     | Metabase   | Visualizes CRM, lead quality, routing, and follow-up metrics                   |
-| Automation       | n8n        | Receives webhook events and sends email notifications                          |
-| Containerization | Docker     | Runs PostgreSQL and Metabase locally                                           |
+| Layer            | Technology | Purpose                                                                                              |
+| ---------------- | ---------- | ---------------------------------------------------------------------------------------------------- |
+| CRM              | Salesforce | Stores synced Lead records and follow-up Tasks                                                       |
+| Database         | PostgreSQL | Stores leads, campaigns, sales reps, scores, routing logs, follow-up tasks, and Salesforce sync logs |
+| Querying         | SQL        | Creates analytics queries and reusable reporting views                                               |
+| Business Logic   | Java       | Scores leads, creates routing recommendations, and generates follow-up tasks                         |
+| Data Scripting   | Python     | Generates sample data, loads PostgreSQL, sends webhook payloads, and syncs Salesforce records        |
+| Dashboarding     | Metabase   | Visualizes CRM, lead quality, routing, follow-up, and Salesforce sync metrics                        |
+| Automation       | n8n        | Receives webhook events, syncs with Salesforce, and sends email notifications                        |
+| Containerization | Docker     | Runs PostgreSQL and Metabase locally                                                                 |
 
 ---
 
@@ -96,7 +136,7 @@ The project generates realistic CRM lead records containing:
 - Assigned sales representative
 - Inquiry details
 
-The generated lead data is loaded into PostgreSQL for scoring, routing, reporting, and dashboarding.
+The generated lead data is loaded into PostgreSQL for scoring, routing, reporting, dashboarding, and Salesforce synchronization.
 
 ---
 
@@ -150,6 +190,45 @@ Follow-up results are stored in the `follow_ups` table.
 
 ---
 
+### Salesforce Integration
+
+The project syncs selected high-priority leads into Salesforce through a live n8n workflow.
+
+For each synced lead, the system:
+
+1. Sends the lead payload from Python to n8n.
+2. Uses an n8n HTTP Request node to upsert a Salesforce Lead.
+3. Uses a Salesforce External ID field to prevent lead overwrite issues.
+4. Finds the created or updated Salesforce Lead.
+5. Checks whether a matching follow-up Task already exists.
+6. Creates a Salesforce Task only when needed.
+7. Returns the Salesforce Lead ID and Task ID.
+8. Stores the Salesforce IDs back in PostgreSQL.
+
+Salesforce objects used:
+
+- Lead
+- Task
+
+Custom Salesforce Lead fields used:
+
+- `Service_Category__c`
+- `Budget_Range__c`
+- `Urgency_Level__c`
+- `Inquiry_Details__c`
+- `Lead_Score__c`
+- `Lead_Quality__c`
+- `Routing_Priority__c`
+- `External_Lead_ID__c`
+
+Salesforce sync results are stored locally in:
+
+```txt
+salesforce_sync_logs
+```
+
+---
+
 ### SQL Reporting Views
 
 The project uses reusable PostgreSQL views to prepare clean reporting tables for Metabase.
@@ -168,6 +247,10 @@ Example views include:
 - `vw_pending_immediate_leads`
 - `vw_follow_up_summary`
 - `vw_pending_follow_up_queue`
+- `vw_salesforce_sync_status`
+- `vw_salesforce_sync_summary`
+- `vw_salesforce_successful_syncs`
+- `vw_salesforce_failed_syncs`
 
 ---
 
@@ -185,6 +268,7 @@ Dashboard areas include:
 - Routing Priority Summary
 - Follow-Up Task Summary
 - Sales Rep Workload
+- Salesforce Sync Status
 
 ---
 
@@ -198,36 +282,37 @@ Current event types:
 
 - `crm_lead_operations_summary`
 - `high_priority_lead_alert`
+- `salesforce_lead_sync`
 
-The n8n workflow:
+The n8n workflow handles:
+
+- CRM operations summary email
+- High-priority lead alert email
+- Salesforce Lead synchronization
+- Salesforce Task creation
+- Duplicate Task prevention
+- Salesforce sync response back to Python
+
+The n8n workflow structure:
 
 ```txt
 Webhook Trigger
         ↓
 Switch Node
-        ↓
-Format Message
-        ↓
-Send Email
+        ├── CRM Summary Email Branch
+        ├── High-Priority Alert Email Branch
+        └── Salesforce Lead Sync Branch
+                ↓
+            Upsert Salesforce Lead
+                ↓
+            Find Salesforce Lead
+                ↓
+            Find Existing Salesforce Task
+                ↓
+            IF Task Exists?
+                ├── Create Task
+                └── Return Existing Task
 ```
-
-This simulates CRM operations notifications and urgent lead alerts.
-
----
-
-### Salesforce CRM Mapping
-
-The project includes Salesforce documentation for how the local system would map to a real CRM implementation.
-
-Documented Salesforce areas include:
-
-- Standard objects
-- Custom objects
-- Field mappings
-- Lead scoring records
-- Routing logs
-- Follow-up automation
-- Production automation flow
 
 ---
 
@@ -246,17 +331,23 @@ smart-crm-lead-intelligence/
 │   ├── views.sql
 │   ├── use_java_scores.sql
 │   ├── routing_views.sql
-│   └── follow_up_views.sql
+│   ├── follow_up_views.sql
+│   ├── salesforce_sync.sql
+│   └── salesforce_reporting_views.sql
 ├── data/
 │   ├── raw/
+│   │   └── .gitkeep
 │   └── processed/
+│       └── .gitkeep
 ├── scripts/
 │   ├── run_pipeline.sh
 │   └── python/
 │       ├── generate_sample_leads.py
 │       ├── load_to_postgres.py
 │       ├── send_n8n_summary.py
-│       └── send_high_priority_alert.py
+│       ├── send_high_priority_alert.py
+│       ├── send_salesforce_leads.py
+│       └── validate_pipeline.py
 ├── sql/
 │   ├── lead_quality_metrics.sql
 │   ├── funnel_metrics.sql
@@ -311,6 +402,8 @@ This starts:
 - PostgreSQL
 - Metabase
 
+The project uses a live external n8n instance, so n8n is not run locally through Docker.
+
 ---
 
 ### 2. Run the full pipeline
@@ -321,20 +414,52 @@ This starts:
 
 The pipeline will:
 
-1. Start Docker services
-2. Seed sales reps and campaigns
-3. Generate sample CRM lead data
-4. Load leads into PostgreSQL
-5. Run the Java lead scoring engine
-6. Run the Java lead routing engine
-7. Generate follow-up tasks
-8. Refresh reporting views
-9. Send CRM operations summary to n8n
-10. Send high-priority lead alert to n8n
+1. Start Docker services.
+2. Seed sales reps and campaigns.
+3. Generate sample CRM lead data.
+4. Load leads into PostgreSQL.
+5. Run the Java lead scoring engine.
+6. Run the Java lead routing engine.
+7. Generate follow-up tasks.
+8. Refresh base reporting views.
+9. Switch reporting views to Java-generated scores.
+10. Refresh routing reporting views.
+11. Refresh follow-up reporting views.
+12. Ensure the Salesforce sync table exists.
+13. Refresh Salesforce sync reporting views.
+14. Sync high-priority leads to Salesforce through n8n.
+15. Send CRM operations summary to n8n.
+16. Send high-priority lead alert to n8n.
+17. Validate the full pipeline output.
 
 ---
 
-### 3. Verify pipeline output
+### 3. Validate pipeline output
+
+```bash
+python3 scripts/python/validate_pipeline.py
+```
+
+Expected validation output:
+
+```txt
+Smart CRM Pipeline Validation
+-----------------------------
+PASS: Leads loaded (500)
+PASS: Lead scores created (500)
+PASS: Routing logs created (500)
+PASS: Follow-up tasks created (500)
+PASS: Salesforce successful syncs (5)
+PASS: Salesforce failed syncs (0)
+PASS: Salesforce Lead IDs stored (5)
+PASS: Salesforce Task IDs stored (5)
+
+Pipeline validation passed.
+```
+
+---
+
+### 4. Verify database counts
 
 ```bash
 docker compose exec postgres psql -U crm_user -d smart_crm -c "
@@ -344,17 +469,39 @@ SELECT 'lead_scores', COUNT(*) FROM lead_scores
 UNION ALL
 SELECT 'routing_logs', COUNT(*) FROM routing_logs
 UNION ALL
-SELECT 'follow_ups', COUNT(*) FROM follow_ups;
+SELECT 'follow_ups', COUNT(*) FROM follow_ups
+UNION ALL
+SELECT 'salesforce_successful_syncs', COUNT(*) FROM salesforce_sync_logs WHERE sync_status = 'Success'
+UNION ALL
+SELECT 'salesforce_failed_syncs', COUNT(*) FROM salesforce_sync_logs WHERE sync_status = 'Failed';
 "
 ```
 
 Expected result:
 
 ```txt
-leads         | 500
-lead_scores   | 500
-routing_logs  | 500
-follow_ups    | 500
+leads                       | 500
+lead_scores                 | 500
+routing_logs                | 500
+follow_ups                  | 500
+salesforce_successful_syncs | 5
+salesforce_failed_syncs     | 0
+```
+
+---
+
+## Salesforce Sync Script
+
+Preview the next high-priority leads without sending them to n8n:
+
+```bash
+python3 scripts/python/send_salesforce_leads.py --dry-run
+```
+
+Sync a limited batch of high-priority leads:
+
+```bash
+python3 scripts/python/send_salesforce_leads.py --limit 5
 ```
 
 ---
@@ -394,6 +541,9 @@ This project can answer questions such as:
 - Which channels generate the most converted leads?
 - What is the distribution of hot, warm, and cold leads?
 - Which routed leads require urgent attention?
+- How many leads were synced to Salesforce?
+- Which Salesforce Lead and Task IDs were created?
+- Which Salesforce syncs failed or remain pending?
 
 ---
 
@@ -411,19 +561,25 @@ Completed:
 - Java follow-up task generator
 - Reporting views
 - Metabase dashboard foundation
+- Salesforce sync reporting views
 - Live n8n webhook integration
 - n8n email notification workflow
-- Salesforce object and field documentation
+- Salesforce Lead sync through n8n
+- Salesforce Task creation through n8n
+- Salesforce duplicate Task prevention
+- Salesforce sync logging back to PostgreSQL
+- Pipeline validation script
 - One-command pipeline script
+- Docker cleanup with local PostgreSQL and Metabase only
 
-Planned next steps:
+Optional future improvements:
 
-- Export n8n workflow JSON
+- Export sanitized n8n workflow JSON
 - Add dashboard screenshots
 - Improve Metabase dashboard layout
 - Add dbt models after SQL logic is stable
-- Prepare final GitHub presentation
-- Create final resume bullets
+- Add more Salesforce reporting cards
+- Add retry logic for failed Salesforce syncs
 
 ---
 

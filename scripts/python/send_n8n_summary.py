@@ -9,7 +9,9 @@ import requests
 from dotenv import load_dotenv
 from psycopg2.extras import RealDictCursor
 
+
 load_dotenv()
+
 DB_CONFIG = {
     "host": os.getenv("POSTGRES_HOST", "localhost"),
     "port": os.getenv("POSTGRES_PORT", "5432"),
@@ -19,6 +21,7 @@ DB_CONFIG = {
 }
 
 N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL")
+
 
 def make_json_serializable(value):
     if isinstance(value, Decimal):
@@ -80,6 +83,20 @@ def build_summary_payload() -> dict:
                     due_today_tasks,
                     upcoming_tasks
                 FROM vw_follow_up_summary;
+                """
+            )
+
+            salesforce_sync_summary = fetch_one(
+                cursor,
+                """
+                SELECT
+                    COUNT(*) AS total_sync_records,
+                    COUNT(*) FILTER (WHERE sync_status = 'Success') AS successful_syncs,
+                    COUNT(*) FILTER (WHERE sync_status = 'Failed') AS failed_syncs,
+                    COUNT(*) FILTER (WHERE sync_status = 'Pending') AS pending_syncs,
+                    COUNT(*) FILTER (WHERE salesforce_record_id IS NOT NULL) AS leads_with_salesforce_id,
+                    COUNT(*) FILTER (WHERE salesforce_task_id IS NOT NULL) AS tasks_created
+                FROM salesforce_sync_logs;
                 """
             )
 
@@ -167,6 +184,7 @@ def build_summary_payload() -> dict:
         "generated_at": datetime.now(ZoneInfo("Asia/Manila")).isoformat(),
         "lead_summary": lead_summary,
         "follow_up_summary": follow_up_summary,
+        "salesforce_sync_summary": salesforce_sync_summary,
         "routing_summary": routing_summary,
         "source_performance": source_performance,
         "top_immediate_leads": top_immediate_leads,
@@ -178,7 +196,7 @@ def send_to_n8n(payload: dict) -> None:
     if not N8N_WEBHOOK_URL:
         raise ValueError(
             "N8N_WEBHOOK_URL is not set. "
-            "Run: export N8N_WEBHOOK_URL='your_webhook_url'"
+            "Add it to your .env file."
         )
 
     response = requests.post(
@@ -187,7 +205,13 @@ def send_to_n8n(payload: dict) -> None:
         timeout=30
     )
 
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as error:
+        print("CRM operations summary failed to send to n8n.")
+        print(f"Status code: {response.status_code}")
+        print(f"Response body: {response.text}")
+        raise error
 
     print("CRM operations summary sent to n8n successfully.")
     print(f"n8n response status: {response.status_code}")

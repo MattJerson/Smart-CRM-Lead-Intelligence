@@ -39,11 +39,23 @@ docker compose exec -T postgres psql -U crm_user -d smart_crm < database/routing
 echo "11. Refreshing follow-up reporting views..."
 docker compose exec -T postgres psql -U crm_user -d smart_crm < database/follow_up_views.sql
 
-echo "12. Sending CRM operations summary to live n8n webhook..."
+echo "12. Ensuring Salesforce sync table exists..."
+docker compose exec -T postgres psql -U crm_user -d smart_crm < database/salesforce_sync.sql
+
+echo "13. Refreshing Salesforce sync reporting views..."
+docker compose exec -T postgres psql -U crm_user -d smart_crm < database/salesforce_reporting_views.sql
+
+echo "14. Syncing high-priority leads to Salesforce through n8n..."
+python3 scripts/python/send_salesforce_leads.py --limit 5
+
+echo "15. Sending CRM operations summary to live n8n webhook..."
 python3 scripts/python/send_n8n_summary.py
 
-echo "13. Sending high-priority lead alert to live n8n webhook..."
+echo "16. Sending high-priority lead alert to live n8n webhook..."
 python3 scripts/python/send_high_priority_alert.py
+
+echo "17. Validating full pipeline output..."
+python3 scripts/python/validate_pipeline.py
 
 echo "Pipeline completed successfully."
 
@@ -55,5 +67,9 @@ SELECT 'lead_scores', COUNT(*) FROM lead_scores
 UNION ALL
 SELECT 'routing_logs', COUNT(*) FROM routing_logs
 UNION ALL
-SELECT 'follow_ups', COUNT(*) FROM follow_ups;
+SELECT 'follow_ups', COUNT(*) FROM follow_ups
+UNION ALL
+SELECT 'salesforce_successful_syncs', COUNT(*) FROM salesforce_sync_logs WHERE sync_status = 'Success'
+UNION ALL
+SELECT 'salesforce_failed_syncs', COUNT(*) FROM salesforce_sync_logs WHERE sync_status = 'Failed';
 "
