@@ -118,6 +118,30 @@ External CRM
 
 ---
 
+## Screenshots
+
+### Pipeline Validation
+
+<img width="816" height="203" alt="Screenshot 2026-06-26 at 12 13 43 AM" src="https://github.com/user-attachments/assets/3891bda5-1a85-422c-bd16-48a28edd4dbb" />
+
+### Metabase Salesforce Sync Status
+
+[Lead Quality Overview · Dashboard · Metabase.pdf](https://github.com/user-attachments/files/29348045/Lead.Quality.Overview.Dashboard.Metabase.pdf)
+
+### n8n Workflow Overview
+
+<img width="1638" height="697" alt="Screenshot 2026-06-26 at 12 06 28 AM" src="https://github.com/user-attachments/assets/c1a0aa33-1063-47c6-90cf-e9fcfc85d258" />
+
+### Salesforce Lead Record
+
+<img width="1920" height="963" alt="Screenshot 2026-06-26 at 12 09 06 AM" src="https://github.com/user-attachments/assets/8cfa9ca6-0bed-4c57-adbc-92ca6792c7d1" />
+
+### Salesforce Follow-Up Task
+
+<img width="1920" height="877" alt="Screenshot 2026-06-26 at 12 11 29 AM" src="https://github.com/user-attachments/assets/baf1a17d-d76b-4f74-8c67-17969852a2d9" />
+
+---
+
 ## Core Features
 
 ### Lead Intake
